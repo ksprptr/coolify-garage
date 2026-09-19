@@ -5,8 +5,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      RPC_SECRET: "${RPC_SECRET}"
-      ADMIN_TOKEN: "${ADMIN_TOKEN}"
+      RPC_SECRET: "${RPC_SECRET:?RPC_SECRET is required — set it in Coolify > Environment Variables (openssl rand -hex 32)}"
+      ADMIN_TOKEN: "${ADMIN_TOKEN:?ADMIN_TOKEN is required — set it in Coolify > Environment Variables (openssl rand -hex 32)}"
       GARAGE_CAPACITY: "${GARAGE_CAPACITY:-64G}"
       GARAGE_ZONE: "${GARAGE_ZONE:-dc1}"
       GARAGE_STARTUP_TIMEOUT: "${GARAGE_STARTUP_TIMEOUT:-60}"
@@ -21,7 +21,8 @@ services:
       test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3903/health"]
       interval: 30s
       timeout: 5s
-      start_period: 20s
+      start_period: 120s
+      start_interval: 2s
       retries: 3
 
   garage-webui:
@@ -29,9 +30,9 @@ services:
     restart: unless-stopped
     environment:
       API_BASE_URL: "http://garage:3903"
-      API_ADMIN_KEY: "${ADMIN_TOKEN}"
+      API_ADMIN_KEY: "${ADMIN_TOKEN:?ADMIN_TOKEN is required}"
       S3_ENDPOINT_URL: "http://garage:3900"
-      AUTH_USER_PASS: "${AUTH_USER_PASS}"
+      AUTH_USER_PASS: "${AUTH_USER_PASS:?AUTH_USER_PASS is required — format user:<bcrypt hash>}"
     expose:
       - "3909"
     depends_on:

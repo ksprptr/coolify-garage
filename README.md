@@ -113,8 +113,14 @@ services:
 | **URL:**          | http://localhost:3900 (S3 API)                                                                                                                                |
 | **Env:**          | `RPC_SECRET`, `ADMIN_TOKEN`, `AUTH_USER_PASS`, `GARAGE_CAPACITY`, `GARAGE_ZONE`, `GARAGE_STARTUP_TIMEOUT`                                                     |
 
-`RPC_SECRET` and `ADMIN_TOKEN` — generate with `openssl rand -hex 32`.
-`AUTH_USER_PASS` — garage-webui login (see [garage-webui README](https://github.com/khairul169/garage-webui) for the expected format).
+`RPC_SECRET` and `ADMIN_TOKEN` — generate with `openssl rand -hex 32`. `RPC_SECRET` must be
+exactly 64 hex characters; the entrypoint validates it and aborts with a clear message otherwise.
+Both are declared `${VAR:?...}` in the compose file, so a deploy with either one missing fails at
+parse time instead of starting a container that dies seconds later.
+`AUTH_USER_PASS` — garage-webui login, `user:<bcrypt hash>` (see [garage-webui README](https://github.com/khairul169/garage-webui) for the expected format).
+**Escape every `$` in the bcrypt hash as `$$`.** Docker Compose interpolates env-file values, so
+`admin:$2b$12$abcdef…` reaches the container as `admin:$2b$12` — the hash is silently truncated and
+login can never succeed. Written as `admin:$$2b$$12$$abcdef…` it arrives intact.
 `GARAGE_CAPACITY` / `GARAGE_ZONE` — initial cluster layout capacity and zone (defaults: `64G`, `dc1`).
 `GARAGE_STARTUP_TIMEOUT` — seconds the entrypoint waits for the server before giving up (default: `60`).
 `ADMIN_TOKEN` is passed to `garage-webui` as `API_ADMIN_KEY`. garage-webui normally reads the
