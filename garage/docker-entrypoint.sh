@@ -1,8 +1,31 @@
 #!/bin/sh
 set -e
 
-sed -e "s|__RPC_SECRET__|${RPC_SECRET}|g" \
-    -e "s|__ADMIN_TOKEN__|${ADMIN_TOKEN}|g" \
+die() {
+  echo "=====================================================================" >&2
+  echo "FATAL: $1" >&2
+  echo "=====================================================================" >&2
+  exit 1
+}
+
+case "$RPC_SECRET" in
+  "") die "RPC_SECRET is not set. Generate one with: openssl rand -hex 32" ;;
+esac
+case "$ADMIN_TOKEN" in
+  "") die "ADMIN_TOKEN is not set. Generate one with: openssl rand -hex 32" ;;
+esac
+if [ "$(printf '%s' "$RPC_SECRET" | wc -c)" -ne 64 ] ||
+   printf '%s' "$RPC_SECRET" | grep -qv '^[0-9a-fA-F]*$'; then
+  die "RPC_SECRET must be exactly 64 hex characters (32 bytes). Generate one with: openssl rand -hex 32"
+fi
+
+# Values go through sed, so escape anything sed would treat as syntax.
+escape() {
+  printf '%s' "$1" | sed -e 's/[\\|&]/\\&/g'
+}
+
+sed -e "s|__RPC_SECRET__|$(escape "$RPC_SECRET")|g" \
+    -e "s|__ADMIN_TOKEN__|$(escape "$ADMIN_TOKEN")|g" \
     /etc/garage.toml.template > /etc/garage.toml
 
 CAPACITY="${GARAGE_CAPACITY:-64G}"
@@ -20,7 +43,7 @@ trap 'kill -TERM "$SERVER_PID" 2>/dev/null' TERM INT
 i=0
 until /garage status >/dev/null 2>&1; do
   if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-    echo "Garage server process died during startup." >&2
+    echo "Garage server process died during startup (see the error above)." >&2
     wait "$SERVER_PID" || exit $?
     exit 1
   fi
