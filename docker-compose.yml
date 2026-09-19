@@ -1,0 +1,43 @@
+services:
+  garage:
+    build:
+      context: ./garage
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      RPC_SECRET: "${RPC_SECRET}"
+      ADMIN_TOKEN: "${ADMIN_TOKEN}"
+      GARAGE_CAPACITY: "${GARAGE_CAPACITY:-64G}"
+      GARAGE_ZONE: "${GARAGE_ZONE:-dc1}"
+      GARAGE_STARTUP_TIMEOUT: "${GARAGE_STARTUP_TIMEOUT:-60}"
+    volumes:
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    expose:
+      - "3900"
+      - "3902"
+      - "3903"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3903/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  garage-webui:
+    image: khairul169/garage-webui:latest
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: "http://garage:3903"
+      API_ADMIN_KEY: "${ADMIN_TOKEN}"
+      S3_ENDPOINT_URL: "http://garage:3900"
+      AUTH_USER_PASS: "${AUTH_USER_PASS}"
+    expose:
+      - "3909"
+    depends_on:
+      garage:
+        condition: service_healthy
+
+volumes:
+  garage-meta:
+  garage-data:
